@@ -17,3 +17,6 @@ import rladv
 rladv.plot_advantage(project="my_project", comparison_variable="my_metric", cache=True, use_cached=True)
 ```
 
+Example Plot:
+![Example Plot](https://imgur.com/a/ddNDrix.jpg)
+
