@@ -11,7 +11,7 @@ import tqdm
 import pickle
 
 
-def plot_advantage(project, comparison_variable, cache=True, use_cached=True):
+def plot_advantage(project, comparison_variable, value_variable="eval/mean_reward", baseline_value=False, cache=True, use_cached=True):
     api = wandb.Api()  # eval/mean_reward
     print("getting runs")
     runs = api.runs(project)
@@ -22,6 +22,8 @@ def plot_advantage(project, comparison_variable, cache=True, use_cached=True):
         envs = {}
         for run in tqdm.tqdm(runs):
             try:
+                if comparison_variable not in run.config:
+                    continue
                 if run.config["env_id"] not in envs:
                     empty_stats = {
                         "eval_reward_auc": 0,
@@ -33,9 +35,9 @@ def plot_advantage(project, comparison_variable, cache=True, use_cached=True):
                         f"{comparison_variable}": copy.deepcopy(empty_stats),
                         "baseline": copy.deepcopy(empty_stats),
                     }
-                key = f"{comparison_variable}" if run.config[comparison_variable]=='True' else "baseline"
+                key = "baseline" if run.config[comparison_variable]==baseline_value else f"{comparison_variable}"
                 # calculate reward auc
-                eval_reward = run.history(keys=["eval/mean_reward"])
+                eval_reward = run.history(keys=[value_variable])
                 eval_reward = np.array(eval_reward).astype(float)
                 # skip if there is less than 20% of the expected data
                 if len(eval_reward) < 50:
