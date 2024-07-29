@@ -10,9 +10,20 @@ import numpy as np
 import tqdm
 import pickle
 
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-def plot_advantage(project, comparison_variable, cache=True, use_cached=True):
-    api = wandb.Api()  # eval/mean_reward
+
+def plot_advantage(project, 
+                   comparison_variable, 
+                   value_variable="eval/mean_reward", 
+                   baseline_value=False, 
+                   cache=True, 
+                   use_cached=True,
+                   save_path=None,
+                   yscale="symlog",
+                   ):
+    api = wandb.Api()
     print("getting runs")
     runs = api.runs(project)
     if use_cached and os.path.exists(f"envs_{project}.pkl"):
@@ -22,6 +33,8 @@ def plot_advantage(project, comparison_variable, cache=True, use_cached=True):
         envs = {}
         for run in tqdm.tqdm(runs):
             try:
+                if comparison_variable not in run.config:
+                    continue
                 if run.config["env_id"] not in envs:
                     empty_stats = {
                         "eval_reward_auc": 0,
@@ -33,14 +46,15 @@ def plot_advantage(project, comparison_variable, cache=True, use_cached=True):
                         f"{comparison_variable}": copy.deepcopy(empty_stats),
                         "baseline": copy.deepcopy(empty_stats),
                     }
-                key = f"{comparison_variable}" if run.config[comparison_variable]=='True' else "baseline"
+                key = "baseline" if run.config[comparison_variable]==baseline_value else f"{comparison_variable}"
                 # calculate reward auc
-                eval_reward = run.history(keys=["eval/mean_reward"])
+                eval_reward = run.history(keys=[value_variable])
                 eval_reward = np.array(eval_reward).astype(float)
                 # skip if there is less than 20% of the expected data
-                if len(eval_reward) < 50:
-                    print(f"skipping {run.name} due to insufficient data {len(eval_reward)}")
+                if run.state != "finished":
+                    print("run not finished", run.name, run.state)
                     continue
+
                 envs[run.config["env_id"]][key]['eval_reward_auc'] += np.sum(eval_reward)
                 envs[run.config["env_id"]][key]['number_of_runs'] += 1
                 envs[run.config["env_id"]][key]['number_of_steps'] += len(eval_reward)
@@ -79,8 +93,6 @@ def plot_advantage(project, comparison_variable, cache=True, use_cached=True):
         sorted(compared_envs.items(), key=lambda item: item[1]['percentage_advantage'])
     )
     # plot the results
-    import matplotlib.pyplot as plt
-    import seaborn as sns
     sns.set_theme(style="whitegrid")
     # use poster settings:
     sns.set_context("poster")
@@ -91,11 +103,13 @@ def plot_advantage(project, comparison_variable, cache=True, use_cached=True):
     plt.bar(compared_envs.keys(), [compared_envs[env]['percentage_advantage'] for env in compared_envs])
     plt.title(f"Percentage advantage of {comparison_variable} compared to baseline")
     plt.xlabel("Environment")
-    plt.yscale("symlog")
+    plt.yscale(yscale)
     plt.ylabel("Percentage advantage")
     plt.xticks(rotation=90)
     # make the x-axis labels fit in the plot
     plt.tight_layout()
+    if save_path is not None:
+        plt.savefig(save_path)
     plt.show()
 
 
