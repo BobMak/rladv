@@ -40,7 +40,7 @@ def plot_advantage(project, comparison_variable, value_variable="eval/mean_rewar
                 eval_reward = run.history(keys=[value_variable])
                 eval_reward = np.array(eval_reward).astype(float)
                 # skip if there is less than 20% of the expected data
-                if len(eval_reward) < 50:
+                if len(eval_reward) < 10:
                     print(f"skipping {run.name} due to insufficient data {len(eval_reward)}")
                     continue
                 envs[run.config["env_id"]][key]['eval_reward_auc'] += np.sum(eval_reward)
